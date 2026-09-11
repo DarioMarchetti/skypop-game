@@ -638,18 +638,6 @@ export function GameCanvas({ seed, scene = 'ocean', paused, sound, onUpdate, onG
         drawSceneFall(context, fallPoint.x, fallPoint.y + 22, fallAge, reducedMotionRef.current, scene);
       }
 
-      if (holdsRef.current.length === 0 && phaseRef.current === 'ready' && !isPaused) {
-        context.save();
-        context.textAlign = 'center';
-        context.fillStyle = '#deefff';
-        context.font = '600 16px system-ui, sans-serif';
-        context.fillText('按住蓄力 · 松开起跳', cssWidth / 2, cssHeight - 58);
-        context.fillStyle = '#8eaec8';
-        context.font = '14px system-ui, sans-serif';
-        context.fillText('瞄准下一座浮岛的黄色圆心', cssWidth / 2, cssHeight - 32);
-        context.restore();
-      }
-
       if (isPaused) {
         context.fillStyle = 'rgba(0, 6, 28, 0.4)';
         context.fillRect(0, 0, cssWidth, cssHeight);

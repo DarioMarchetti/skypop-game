@@ -8,6 +8,7 @@ import {
 } from './lib/api'
 import { ITEM_INFO } from './game/items'
 import { chooseScene, isScene, SCENES, type SceneKind } from './game/sceneTypes'
+import Guide from './Guide'
 import './styles.css'
 
 type RunMode = 'loading' | 'cloud' | 'local'
@@ -53,6 +54,13 @@ function Icon({ name }: { name: 'pause' | 'play' | 'sound' | 'mute' | 'arrow' | 
 }
 
 export default function App() {
+  const [guideOpen, setGuideOpen] = useState(() => window.location.hash === '#/guide')
+  useEffect(() => {
+    const navigate = () => { const open = window.location.hash === '#/guide'; setGuideOpen(open); if (open) setPaused(true) }
+    navigate()
+    window.addEventListener('hashchange', navigate)
+    return () => window.removeEventListener('hashchange', navigate)
+  }, [])
   const [seed, setSeed] = useState<number | null>(null)
   const [roundKey, setRoundKey] = useState(0)
   const [scene, setScene] = useState<SceneKind>('ocean')
@@ -102,7 +110,7 @@ export default function App() {
     setNewRecord(false)
     setFinishState('idle')
     setFinishError('')
-    setPaused(false)
+    setPaused(window.location.hash === '#/guide')
     setSnapshot({ score: 0, combo: 0, perfectCount: 0, phase: 'ready', charge: 0 })
     previousPhaseRef.current = 'ready'
     setImpactPulse(false)
@@ -240,8 +248,6 @@ export default function App() {
 
   const isPlaying = mode !== 'loading' && snapshot.phase !== 'gameover' && seed !== null
   const statusText = mode === 'local' ? '本地练习 · 成绩仅保存在本机' : mode === 'cloud' ? '云端比赛 · 记录可提交排行榜' : '正在准备下一朵云…'
-  const phaseText = snapshot.phase === 'charging' ? '蓄力中' : snapshot.phase === 'jumping' ? '跳跃中' : snapshot.phase === 'gameover' ? '结算' : '准备起跳'
-  const comboTier = snapshot.combo >= 5 ? 'is-max' : snapshot.combo > 1 ? 'is-hot' : ''
   const leaderboardMessage = useMemo(() => {
     if (!isCloudConfigured) return '连接云端后，前 20 名会在这里出现'
     if (leaderboardState === 'loading') return '正在加载…'
@@ -250,13 +256,16 @@ export default function App() {
   }, [leaderboardError, leaderboardState])
 
   return (
-    <main className="app-shell">
+    <>
+    {guideOpen && <Guide />}
+    <main className="app-shell" style={{display:guideOpen ? 'none' : undefined}}>
       <header className="topbar">
         <a className="brand" href="/" aria-label="云上跳跃首页">
           <span className="brand-mark"><span /><span /><span /></span>
           <span><strong>云上跳跃</strong><small>CLOUD HOP</small></span>
         </a>
         <div className="top-actions">
+          <a className="quiet-button guide-link" href="#/guide">玩法说明</a>
           <button className="quiet-button" type="button" onClick={() => setSound((value) => !value)} aria-pressed={sound} aria-label={sound ? '关闭节拍声' : '开启节拍声'}>
             <Icon name={sound ? 'sound' : 'mute'} /><span className="button-label">{sound ? '节拍声' : '静音'}</span>
           </button>
@@ -268,27 +277,13 @@ export default function App() {
 
       <div className="layout-grid">
         <section className="game-column" aria-label="游戏区域">
-          <div className="game-head">
-            <div className="score-cluster">
-              <span className="eyebrow">当前分数</span>
-              <strong className={`score-value ${impactPulse ? 'is-impact' : ''}`} aria-label={`当前分数 ${snapshot.score}`}>{snapshot.score.toString().padStart(2, '0')}</strong>
-              {snapshot.combo > 1 && <span className="combo-badge">连击 ×{snapshot.combo}</span>}
-            </div>
-            <div className="best-cluster"><span>本地最佳</span><strong>{best.toString().padStart(2, '0')}</strong></div>
-          </div>
-
-          <div className={`arcade-hud ${impactPulse ? 'is-impact' : ''}`} aria-label="游戏状态">
-            <div className="jump-status"><strong>{phaseText}<span className="scene-badge" style={{color:SCENES[scene].rim}}>本局 · {SCENES[scene].name}</span></strong><span>看小人蓄力，松手起跳</span>
-              {!!snapshot.items?.length && <div className="item-inventory" aria-label="当前道具">{snapshot.items.map(item => <span key={item.kind} title={ITEM_INFO[item.kind].description} style={{color:ITEM_INFO[item.kind].color}}>{ITEM_INFO[item.kind].name} · {item.remaining}跳</span>)}</div>}
-            </div>
-            <div className={`combo-meter ${comboTier}`}>
-              <span className="hud-label"><span>连击</span><strong>{snapshot.combo > 0 ? `×${snapshot.combo}` : '—'}</strong></span>
-              <span className="combo-pips" aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <i key={index} className={index < Math.min(snapshot.combo, 5) ? 'is-filled' : ''} />)}</span>
-            </div>
-          </div>
-
           <div className={`game-frame ${paused ? 'is-paused' : ''} ${impactPulse ? 'is-impact' : ''}`}>
-            <div className="game-status" aria-live="polite"><span className={`status-dot status-${mode}`} />{statusText}</div>
+            <div className="play-hud">
+              <div className="play-score"><span>分数</span><strong className={impactPulse ? 'is-impact' : ''}>{snapshot.score.toString().padStart(2, '0')}</strong>{snapshot.combo > 1 && <b>连击 ×{snapshot.combo}</b>}</div>
+              <div className="play-meta"><span style={{color:SCENES[scene].rim}}>{SCENES[scene].name}</span><span>最佳 {best}</span>{mode === 'local' && <span>本地练习</span>}</div>
+            </div>
+            {!!snapshot.items?.length && <div className="play-items item-inventory" aria-label="当前道具">{snapshot.items.map(item=><span key={item.kind} style={{color:ITEM_INFO[item.kind].color}}>{ITEM_INFO[item.kind].name} · {item.remaining}跳</span>)}</div>}
+            <span className="game-a11y-help" aria-live="polite">{statusText}</span>
             {mode !== 'loading' && seed !== null && <GameCanvas key={`${seed}-${roundKey}`} seed={seed} scene={scene} paused={paused} sound={sound} onUpdate={onUpdate} onGameOver={onGameOver} />}
             {mode === 'loading' && <div className="game-loading" aria-live="polite"><span className="loader" />正在连接云端…</div>}
             {paused && isPlaying && <div className="pause-cover"><span className="pause-symbol"><Icon name="play" /></span><strong>游戏已暂停</strong><span>点击右上角继续</span></div>}
@@ -300,13 +295,6 @@ export default function App() {
             </div>
           </div>
 
-          <div className="game-footer">
-            <p><kbd>空格</kbd> 蓄力起跳 <span className="footer-divider">·</span> 踩中下一座浮岛得分</p>
-            <span className="seed-label">{mode === 'cloud' ? <><Icon name="cloud" /> 已锁定比赛种子</> : '练习种子 · 随机生成'}</span>
-          </div>
-          <details className="item-guide"><summary>探索道具 · 落在岛上即可拾取</summary>
-            {Object.values(ITEM_INFO).map(item => <p key={item.name}><strong style={{color:item.color}}>{item.name}</strong>：{item.description}</p>)}
-          </details>
         </section>
 
         <aside className="leaderboard-panel" aria-labelledby="leaderboard-title">
@@ -314,7 +302,7 @@ export default function App() {
           <div className="leaderboard-body">
             {leaders.length > 0 ? <ol className="leader-list">{leaders.map((entry, index) => <li key={entry.id} className={index < 3 ? 'podium' : ''}><span className="rank">{String(index + 1).padStart(2, '0')}</span><span className="leader-name">{entry.nickname}</span><span className="leader-score">{entry.score}</span><time>{formatRankDate(entry.created_at)}</time></li>)}</ol> : <div className="leader-empty"><span className="empty-cloud">☁</span><strong>{leaderboardState === 'loading' ? '排行榜加载中' : leaderboardState === 'error' ? '暂时无法连接' : '还没有人登榜'}</strong><p>{leaderboardMessage}</p>{leaderboardState === 'error' && <button type="button" className="text-button" onClick={() => void loadLeaderboard()}><Icon name="refresh" />重新加载</button>}</div>}
           </div>
-          <p className="panel-note">每局只可提交一次，昵称最多 16 个字符</p>
+
         </aside>
       </div>
 
@@ -328,5 +316,6 @@ export default function App() {
         <div className="result-actions"><button className="secondary-button" type="button" onClick={restart} disabled={finishState === 'submitting'}><Icon name="refresh" /> {finishState === 'submitting' ? '提交中…' : '再来一局'}</button></div>
       </section></div>}
     </main>
+    </>
   )
 }
