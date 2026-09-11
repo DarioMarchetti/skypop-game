@@ -54,3 +54,9 @@
 - 本次前端改动未修改 Supabase 数据和共享计分规则。
 
 - 海洋道具生产部署：dpl_5Hfzuuho7a65m2DPvpcKQqFdFYq6，READY；域名 https://cloud-hop.vercel.app/ 。
+
+## 五场景升级
+- 9 项测试、类型检查和生产构建通过。
+- 浏览器验证五种场景各自掉落与结算，并验证新局随机且不连续重复。
+- 新增场景名称提示，支持减少动态效果；数据及计分核心无变更。
+- 五场景生产部署：dpl_y6wKhLZYSjL9xfmMGTXLsSpgk6D5；演示地址 https://cloud-hop.vercel.app/ 。

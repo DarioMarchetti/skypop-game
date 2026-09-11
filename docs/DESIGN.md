@@ -85,3 +85,7 @@ src/App.tsx / src/styles.css，导入 GameCanvas 与 api。负责局生命周期
 
 ## 最新交互与海洋道具
 当前设计以 docs/EFFECTS.md 与 docs/ITEMS.md 的海洋升级为准。蓄力进度条已移除，由角色及当前岛屿表现蓄力；失败时下坠落水后结算。三种道具由种子决定出现位置，提供落点辅助或视觉奖励，不修改共享计分。源码仓库：https://github.com/DarioMarchetti/skypop-game 。
+
+
+## 五场景升级
+新增岩浆、高空、大海、冰块、藤蔓五套场景，每局随机选择且不连续重复。各自平台外观、掉落效果和声音不同，物理计分保持一致。设计与验收见 [SCENES.md](SCENES.md)。

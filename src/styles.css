@@ -732,3 +732,5 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 .item-guide { margin-top:10px; color:#a7bbcf; font-size:12px; line-height:1.7; }
 .item-guide summary { cursor:pointer; }
 .item-guide p { margin:6px 0; }
+
+.scene-badge { margin-left:14px; font-size:12px; font-weight:500; letter-spacing:.05em; }

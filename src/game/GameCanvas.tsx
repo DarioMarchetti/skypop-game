@@ -16,7 +16,9 @@ import {
 } from './core';
 import { createFxState, drawFx, spawnLandingFx, stepFx, type FxState } from './fx';
 import { getAudioDirector } from './audio';
-import { drawOcean, drawSplash } from './ocean';
+import { drawSceneBackground } from './sceneBackground';
+import { drawSceneFall } from './sceneFall';
+import { SCENES, type SceneKind } from './sceneTypes';
 import { itemAt, drawItem, drawRainbowTrail, ITEM_INFO, type ItemKind } from './items';
 
 export type GameSnapshot = {
@@ -38,6 +40,7 @@ export type GameResult = {
 
 export type GameCanvasProps = {
   seed: number;
+  scene?: SceneKind;
   paused: boolean;
   sound: boolean;
   onUpdate: (snapshot: GameSnapshot) => void;
@@ -95,7 +98,9 @@ const drawPlatform = (
   width: number,
   height: number,
   active: boolean,
+  scene: SceneKind,
 ): void => {
+  const palette = SCENES[scene];
   const center = project(platform.x, platform.z, cameraX, cameraZ, width, height);
   const rx = platform.radius * 0.98 * sceneScale(width);
   const ry = platform.radius * 0.48 * sceneScale(width);
@@ -107,8 +112,8 @@ const drawPlatform = (
   // A thick underside and two offset rims sell the floating depth at a glance.
   context.save();
   context.translate(0, 15);
-  context.fillStyle = 'rgba(0, 8, 34, 0.82)';
-  context.shadowColor = 'rgba(21, 151, 255, 0.3)';
+  context.fillStyle = palette.underside;
+  context.shadowColor = palette.rim;
   context.shadowBlur = active ? 24 : 11;
   context.beginPath();
   context.ellipse(center.x, center.y, rx * 1.04, ry * 0.94, 0, 0, Math.PI * 2);
@@ -116,7 +121,7 @@ const drawPlatform = (
   context.restore();
 
   context.globalAlpha = active ? 0.88 : 0.56;
-  context.strokeStyle = active ? '#36dcff' : '#287fc2';
+  context.strokeStyle = palette.rim;
   context.lineWidth = active ? 3 : 2;
   context.beginPath();
   context.ellipse(center.x, center.y + 9, rx * 1.02, ry * 0.95, 0, 0, Math.PI * 2);
@@ -124,8 +129,8 @@ const drawPlatform = (
 
   if (active) drawGlow(context, center.x, center.y + 3, platform.radius * 1.7, 'rgba(64, 205, 255, 0.13)');
   const fill = context.createLinearGradient(center.x, center.y - ry, center.x, center.y + ry);
-  fill.addColorStop(0, active ? '#bdf5ff' : '#7bc9ee');
-  fill.addColorStop(1, active ? '#49a7d2' : '#2773af');
+  fill.addColorStop(0, palette.top);
+  fill.addColorStop(1, palette.bottom);
   context.fillStyle = fill;
   context.strokeStyle = active ? 'rgba(232, 255, 255, 0.94)' : 'rgba(154, 226, 255, 0.68)';
   context.lineWidth = active ? 2 : 1;
@@ -141,11 +146,38 @@ const drawPlatform = (
   context.ellipse(center.x, center.y - 2, rx * 0.67, ry * 0.58, 0, 0, Math.PI * 2);
   context.stroke();
   context.globalAlpha = active ? 0.42 : 0.2;
-  context.strokeStyle = active ? '#c7faff' : '#4fb9ed';
+  context.strokeStyle = palette.rim;
   context.lineWidth = 1;
   context.beginPath();
   context.ellipse(center.x, center.y + 5, rx * 0.82, ry * 0.67, 0, 0, Math.PI * 2);
   context.stroke();
+  context.globalAlpha = active ? 0.85 : 0.6;
+  context.strokeStyle = palette.rim;
+  context.lineWidth = 1.4;
+  if (scene === 'lava' || scene === 'ice') {
+    // Surface cracks and facets stay inside the physical landing ellipse.
+    for (let ray = 0; ray < 5; ray++) {
+      const angle = ray * Math.PI * 0.4 + platform.index;
+      context.beginPath(); context.moveTo(center.x, center.y);
+      context.lineTo(center.x + Math.cos(angle + 0.2) * rx * 0.4, center.y + Math.sin(angle + 0.2) * ry * 0.4);
+      context.lineTo(center.x + Math.cos(angle) * rx * 0.85, center.y + Math.sin(angle) * ry * 0.85);
+      context.stroke();
+    }
+  } else if (scene === 'vines') {
+    for (let vine = -1; vine <= 1; vine++) {
+      const vx = center.x + vine * rx * 0.6;
+      context.strokeStyle = '#64a755'; context.lineWidth = 2;
+      context.beginPath(); context.moveTo(vx, center.y + ry * 0.7);
+      context.bezierCurveTo(vx + 9, center.y + ry + 10, vx - 9, center.y + ry + 18, vx, center.y + ry + 30);
+      context.stroke();
+      context.fillStyle = '#9cce65'; context.beginPath(); context.ellipse(vx + 4, center.y + ry + 14, 6, 3, -0.7, 0, Math.PI * 2); context.fill();
+    }
+  } else if (scene === 'sky') {
+    context.fillStyle = '#eefaff';
+    for (let puff = -2; puff <= 2; puff++) {
+      context.beginPath(); context.ellipse(center.x + puff * rx * 0.29, center.y + ry * 0.5, rx * 0.24, ry * 0.4, 0, 0, Math.PI * 2); context.fill();
+    }
+  }
   context.restore();
 };
 
@@ -192,7 +224,7 @@ const drawCharacter = (
   context.restore();
 };
 
-export function GameCanvas({ seed, paused, sound, onUpdate, onGameOver }: GameCanvasProps) {
+export function GameCanvas({ seed, scene = 'ocean', paused, sound, onUpdate, onGameOver }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // `createRun` builds the complete deterministic route. Keep the ref lazy so
   // high-frequency snapshot renders never regenerate all 1024 platforms.
@@ -389,7 +421,7 @@ export function GameCanvas({ seed, paused, sound, onUpdate, onGameOver }: GameCa
       let actor = run.platforms[run.index] ?? run.platforms[0];
       let actorHeight = 16;
       let progress = 0;
-      let waterAge = -1;
+      let fallAge = -1;
       if (phaseRef.current === 'jumping' && jump) {
         progress = clamp((gameTimestamp - jump.startedAt) / JUMP_DURATION_MS, 0, 1);
         const arc = 4 * progress * (1 - progress);
@@ -407,13 +439,13 @@ export function GameCanvas({ seed, paused, sound, onUpdate, onGameOver }: GameCa
         if (!jump.landed && progress >= 1) {
           const fallMs = gameTimestamp - jump.startedAt - JUMP_DURATION_MS;
           actorHeight = 18 - Math.min(65, fallMs * 0.26);
-          waterAge = (fallMs - 200) / 1000;
-          if (!isPaused && waterAge >= 0 && !jump.impactSpawned) {
+          fallAge = (fallMs - 200) / 1000;
+          if (!isPaused && fallAge >= 0 && !jump.impactSpawned) {
             jump.impactSpawned = true;
-            audioRef.current.tone('fail');
+            audioRef.current.tone('fail', 0, scene);
           }
         }
-        if (!isPaused && progress >= 1 && (jump.landed || waterAge >= 0.9)) {
+        if (!isPaused && progress >= 1 && (jump.landed || fallAge >= 0.9)) {
           if (jump.landed && !jump.impactSpawned) {
             jump.impactSpawned = true;
             if (itemsRef.current.pearl > 0 && !reducedMotionRef.current) {
@@ -457,13 +489,13 @@ export function GameCanvas({ seed, paused, sound, onUpdate, onGameOver }: GameCa
       const cameraX = cameraRef.current.x + Math.sin(visualTimestamp * 0.071) * shake * 0.16;
       const cameraZ = cameraRef.current.z + Math.cos(visualTimestamp * 0.089) * shake * 0.13;
 
-      drawOcean(context, cssWidth, cssHeight, visualTimestamp, reducedMotionRef.current);
+      drawSceneBackground(context, cssWidth, cssHeight, visualTimestamp, reducedMotionRef.current, scene);
 
       const visibleIndex = phaseRef.current === 'jumping' && jump ? jump.from.index : run.index;
       const first = Math.max(0, visibleIndex - 3);
       const last = Math.min(run.platforms.length, visibleIndex + 8);
       for (let index = last - 1; index >= first; index -= 1) {
-        drawPlatform(context, run.platforms[index], cameraX, cameraZ, cssWidth, cssHeight, index === visibleIndex);
+        drawPlatform(context, run.platforms[index], cameraX, cameraZ, cssWidth, cssHeight, index === visibleIndex, scene);
         const item = index > visibleIndex ? itemAt(seed, index) : null;
         if (item) {
           const point = project(run.platforms[index].x, run.platforms[index].z, cameraX, cameraZ, cssWidth, cssHeight);
@@ -546,7 +578,7 @@ export function GameCanvas({ seed, paused, sound, onUpdate, onGameOver }: GameCa
         const radius = run.platforms[run.index].radius * sceneScale(cssWidth);
         const energy = 0.15 + actorCharge * 0.85;
         const reduced = reducedMotionRef.current;
-        const color = actorCharge > 0.8 ? '#fff07a' : '#70f5ff';
+        const color = actorCharge > 0.8 ? '#fff07a' : SCENES[scene].rim;
         context.save();
         context.translate(origin.x, origin.y);
         context.scale(1, 0.49);
@@ -592,7 +624,7 @@ export function GameCanvas({ seed, paused, sound, onUpdate, onGameOver }: GameCa
           context.restore();
         }
       }
-      if (actor && waterAge < 0 && !(phaseRef.current === 'gameover' && jump && !jump.landed)) drawCharacter(context, { ...actor, x: actor.x + actorJitter, height: actorHeight - actorCharge * 8.1 }, cameraX, cameraZ, cssWidth, cssHeight, {
+      if (actor && fallAge < 0 && !(phaseRef.current === 'gameover' && jump && !jump.landed)) drawCharacter(context, { ...actor, x: actor.x + actorJitter, height: actorHeight - actorCharge * 8.1 }, cameraX, cameraZ, cssWidth, cssHeight, {
         charge: actorCharge,
         scaleX: phaseRef.current === 'charging' ? 1 + actorCharge * 0.48 : 1 - actorArc * 0.08,
         scaleY: phaseRef.current === 'charging' ? 1 - actorCharge * 0.45 : 1 + actorArc * 0.18,
@@ -601,9 +633,9 @@ export function GameCanvas({ seed, paused, sound, onUpdate, onGameOver }: GameCa
 
       drawFx(context, fxRef.current, (x, z) => project(x, z, cameraX, cameraZ, cssWidth, cssHeight), sceneScale(cssWidth), reducedMotionRef.current);
 
-      if (waterAge >= 0) {
-        const waterPoint = project(actor.x, actor.z, cameraX, cameraZ, cssWidth, cssHeight);
-        drawSplash(context, waterPoint.x, waterPoint.y + 22, waterAge, reducedMotionRef.current);
+      if (fallAge >= 0) {
+        const fallPoint = project(actor.x, actor.z, cameraX, cameraZ, cssWidth, cssHeight);
+        drawSceneFall(context, fallPoint.x, fallPoint.y + 22, fallAge, reducedMotionRef.current, scene);
       }
 
       if (holdsRef.current.length === 0 && phaseRef.current === 'ready' && !isPaused) {
@@ -636,7 +668,7 @@ export function GameCanvas({ seed, paused, sound, onUpdate, onGameOver }: GameCa
       if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
       audioRef.current.pause();
     };
-  }, [publish]);
+  }, [publish, scene, seed]);
 
   return (
     <canvas

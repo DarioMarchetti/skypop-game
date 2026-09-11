@@ -4,8 +4,10 @@ import { createRoot } from 'react-dom/client';
 import { GameCanvas, type GameSnapshot } from './game/GameCanvas';
 import { applyJump, createRun, JUMP_DURATION_MS } from './game/core';
 import './styles.css';
+import { SCENE_KINDS, SCENES, type SceneKind } from './game/sceneTypes';
 
 function Harness() {
+  const [scene,setScene] = useState<SceneKind>('ocean');
   const [generation, setGeneration] = useState(0);
   const [snapshot,setSnapshot] = useState<GameSnapshot>({score:0,combo:0,perfectCount:0,phase:'ready',charge:0});
   const [paused,setPaused] = useState(false);
@@ -39,8 +41,9 @@ function Harness() {
   function reset() { token.current++;run.current=createRun(42);setGeneration(v=>v+1);setBusy(false);setPaused(false); }
   return <main style={{padding:20,minHeight:'100vh',background:'#070612',color:'#eff'}}>
     <h1 style={{fontSize:22}}>特效验收 · 本地模拟，不写排行榜</h1>
+    <div aria-label="测试场景">{SCENE_KINDS.map(kind=><button key={kind} aria-pressed={scene===kind} onClick={()=>{setScene(kind);reset();}}>{SCENES[kind].name}场景</button>)}</div>
     <div style={{display:'flex',gap:12,flexWrap:'wrap',margin:'20px 0'}}>
-      <button onClick={()=>void play(1,false,true)} disabled={busy||paused}>落水测试</button>
+      <button onClick={()=>void play(1,false,true)} disabled={busy||paused}>掉落测试</button>
       <button onClick={()=>void play(1,false)} disabled={busy||paused}>普通落点</button>
       <button onClick={()=>void play(1,true)} disabled={busy||paused}>完美落点</button>
       <button onClick={()=>void play(5,true)} disabled={busy||paused}>连续完美 ×5</button>
@@ -51,7 +54,7 @@ function Harness() {
     </div>
     <p role="status">阶段 {snapshot.phase} · 分数 {snapshot.score} · 连击 {snapshot.combo} · 完美 {snapshot.perfectCount} · 道具 {snapshot.items?.map(item=>`${item.kind}:${item.remaining}`).join(',') || '无'}</p>
     <div ref={root} style={{width:mobile?390:900,maxWidth:'100%',height:600,border:'1px solid #7873ae'}}>
-      <GameCanvas key={generation} seed={42} paused={paused} sound={sound} onUpdate={setSnapshot} onGameOver={()=>setBusy(false)}/>
+      <GameCanvas key={generation} seed={42} scene={scene} paused={paused} sound={sound} onUpdate={setSnapshot} onGameOver={()=>setBusy(false)}/>
     </div>
   </main>
 }

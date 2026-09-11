@@ -1,3 +1,5 @@
+import type { SceneKind } from './sceneTypes';
+
 type ToneKind = 'charge' | 'release' | 'land' | 'fail';
 
 type AudioWindow = Window & { webkitAudioContext?: typeof AudioContext };
@@ -70,7 +72,7 @@ class AudioDirector {
     this.timer = null;
   }
 
-  tone(kind: ToneKind, combo = 0): void {
+  tone(kind: ToneKind, combo = 0, scene: SceneKind = 'ocean'): void {
     if (!this.enabled) return;
     if (kind === 'fail' && this.context) this.stopBeat();
     else this.activate();
@@ -100,9 +102,9 @@ class AudioDirector {
       this.voice(root * 1.25, time, 0.23, 'triangle', 0.11, 0.2);
       this.voice(root * 1.5, time + 0.025, 0.24, 'sine', 0.08, 0.22);
     } else {
-      // A low plop under a filtered noise burst resembles water, not an alarm.
-      this.voice(145, time, 0.28, 'sine', 0.22, 0.25);
-      this.voice(78, time + 0.05, 0.35, 'sine', 0.15, 0.32);
+      const notes = {ocean:[145,78], lava:[65,43], sky:[440,220], ice:[1500,2300], vines:[240,130]}[scene];
+      this.voice(notes[0], time, 0.28, scene === 'ice' ? 'triangle' : 'sine', 0.18, 0.25);
+      this.voice(notes[1], time + 0.05, 0.35, 'sine', 0.12, 0.32);
       const buffer = this.context.createBuffer(1, Math.ceil(this.context.sampleRate * 0.42), this.context.sampleRate);
       const samples = buffer.getChannelData(0);
       for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
@@ -110,9 +112,10 @@ class AudioDirector {
       const filter = this.context.createBiquadFilter();
       const gain = this.context.createGain();
       source.buffer = buffer;
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(2600, time);
-      filter.frequency.exponentialRampToValueAtTime(350, time + 0.4);
+      filter.type = scene === 'sky' || scene === 'vines' ? 'bandpass' : 'lowpass';
+      const bands = {ocean:[2600,350],lava:[850,100],sky:[1800,600],ice:[6000,2000],vines:[3000,800]}[scene];
+      filter.frequency.setValueAtTime(bands[0], time);
+      filter.frequency.exponentialRampToValueAtTime(bands[1], time + 0.4);
       gain.gain.setValueAtTime(0.0001, time);
       gain.gain.exponentialRampToValueAtTime(0.38, time + 0.018);
       gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.4);

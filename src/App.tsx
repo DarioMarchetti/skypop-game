@@ -7,6 +7,7 @@ import {
   startSession,
 } from './lib/api'
 import { ITEM_INFO } from './game/items'
+import { chooseScene, isScene, SCENES, type SceneKind } from './game/sceneTypes'
 import './styles.css'
 
 type RunMode = 'loading' | 'cloud' | 'local'
@@ -54,6 +55,8 @@ function Icon({ name }: { name: 'pause' | 'play' | 'sound' | 'mute' | 'arrow' | 
 export default function App() {
   const [seed, setSeed] = useState<number | null>(null)
   const [roundKey, setRoundKey] = useState(0)
+  const [scene, setScene] = useState<SceneKind>('ocean')
+  const lastSceneRef = useRef<SceneKind | null>(null)
   const [mode, setMode] = useState<RunMode>('loading')
   const [session, setSession] = useState<{ id: string; seed: number; token: string } | null>(null)
   const [paused, setPaused] = useState(false)
@@ -123,6 +126,12 @@ export default function App() {
       setSeed(randomSeed())
       setMode('local')
     }
+    let previous = lastSceneRef.current
+    if (!previous) { try { const stored = sessionStorage.getItem('cloud-hop-scene'); if (isScene(stored)) previous = stored } catch { /* Storage is optional. */ } }
+    const nextScene = chooseScene(previous)
+    lastSceneRef.current = nextScene
+    setScene(nextScene)
+    try { sessionStorage.setItem('cloud-hop-scene', nextScene) } catch { /* Keep this round playable. */ }
   }, [])
 
   useEffect(() => {
@@ -269,7 +278,7 @@ export default function App() {
           </div>
 
           <div className={`arcade-hud ${impactPulse ? 'is-impact' : ''}`} aria-label="游戏状态">
-            <div className="jump-status"><strong>{phaseText}</strong><span>看小人蓄力，松手起跳</span>
+            <div className="jump-status"><strong>{phaseText}<span className="scene-badge" style={{color:SCENES[scene].rim}}>本局 · {SCENES[scene].name}</span></strong><span>看小人蓄力，松手起跳</span>
               {!!snapshot.items?.length && <div className="item-inventory" aria-label="当前道具">{snapshot.items.map(item => <span key={item.kind} title={ITEM_INFO[item.kind].description} style={{color:ITEM_INFO[item.kind].color}}>{ITEM_INFO[item.kind].name} · {item.remaining}跳</span>)}</div>}
             </div>
             <div className={`combo-meter ${comboTier}`}>
@@ -280,7 +289,7 @@ export default function App() {
 
           <div className={`game-frame ${paused ? 'is-paused' : ''} ${impactPulse ? 'is-impact' : ''}`}>
             <div className="game-status" aria-live="polite"><span className={`status-dot status-${mode}`} />{statusText}</div>
-            {mode !== 'loading' && seed !== null && <GameCanvas key={`${seed}-${roundKey}`} seed={seed} paused={paused} sound={sound} onUpdate={onUpdate} onGameOver={onGameOver} />}
+            {mode !== 'loading' && seed !== null && <GameCanvas key={`${seed}-${roundKey}`} seed={seed} scene={scene} paused={paused} sound={sound} onUpdate={onUpdate} onGameOver={onGameOver} />}
             {mode === 'loading' && <div className="game-loading" aria-live="polite"><span className="loader" />正在连接云端…</div>}
             {paused && isPlaying && <div className="pause-cover"><span className="pause-symbol"><Icon name="play" /></span><strong>游戏已暂停</strong><span>点击右上角继续</span></div>}
             <div className="game-a11y-help" aria-live="polite">
@@ -292,10 +301,10 @@ export default function App() {
           </div>
 
           <div className="game-footer">
-            <p><kbd>空格</kbd> 蓄力起跳 <span className="footer-divider">·</span> 踩中冰蓝浮岛得分</p>
+            <p><kbd>空格</kbd> 蓄力起跳 <span className="footer-divider">·</span> 踩中下一座浮岛得分</p>
             <span className="seed-label">{mode === 'cloud' ? <><Icon name="cloud" /> 已锁定比赛种子</> : '练习种子 · 随机生成'}</span>
           </div>
-          <details className="item-guide"><summary>海上道具 · 落在岛上即可拾取</summary>
+          <details className="item-guide"><summary>探索道具 · 落在岛上即可拾取</summary>
             {Object.values(ITEM_INFO).map(item => <p key={item.name}><strong style={{color:item.color}}>{item.name}</strong>：{item.description}</p>)}
           </details>
         </section>
