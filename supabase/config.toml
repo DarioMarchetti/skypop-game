@@ -1,0 +1,3 @@
+# The game has its own random session token; it does not require Supabase Auth.
+[functions.cloud-hop]
+verify_jwt = false

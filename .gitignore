@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-qa/
+.env
+.env.*
+!.env.example
+.vercel/
+.sites-runtime/
+supabase/.temp/
+test-results/
