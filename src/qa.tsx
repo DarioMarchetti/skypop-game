@@ -23,7 +23,8 @@ function Harness() {
     setBusy(true);
     const epoch=++token.current;
     for(let i=0;i<count && epoch===token.current;i++) {
-      const current=run.current.platforms[run.current.index], target=run.current.platforms[run.current.index+1];
+      const platform=run.current.platforms[run.current.index], target=run.current.platforms[run.current.index+1];
+      const current={...platform,...run.current.position};
       if(!target || run.current.over)break;
       const distance=Math.hypot(target.x-current.x,target.z-current.z)+(perfect?0:target.radius*.55);
       const hold=miss ? 25 : Math.round((distance-30)/.24);

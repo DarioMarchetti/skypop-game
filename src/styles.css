@@ -791,3 +791,30 @@ button:focus-visible, input:focus-visible, a:focus-visible {
  .app-shell .layout-grid { margin:8px auto; }
  .top-actions .guide-link { white-space:nowrap; }
 }
+
+/* Full-bleed game with a compact, collapsible control panel. */
+.app-shell .layout-grid { width:100%; margin:0; }
+.app-shell .game-frame { border:0; border-radius:0; box-shadow:none; }
+.play-hud { inset:20px 20px auto; }
+.play-meta { margin-right:64px; }
+.floating-menu { position:absolute; top:20px; right:20px; z-index:15; }
+.menu-toggle { width:46px; height:46px; border:1px solid #ffffff30; border-radius:14px; color:#fff; background:#091422d9; font-size:23px; cursor:pointer; }
+.menu-panel { position:absolute; top:56px; right:0; width:240px; padding:12px; display:grid; gap:8px; background:#101828f5; border:1px solid #ffffff30; border-radius:16px; box-shadow:0 15px 40px #0006; }
+.menu-panel a,.menu-panel button { display:block; text-align:left; text-decoration:none; color:#e9f5ff; font-size:14px; padding:11px; background:#ffffff08; border:0; border-radius:8px; cursor:pointer; }
+.menu-panel label,.skip-result { font-size:13px; display:flex; align-items:center; gap:8px; color:#c2d4e3; padding:10px 0; }
+.menu-panel input,.skip-result input { width:17px; height:17px; accent-color:#55dddf; }
+.play-items>span { display:flex; flex-direction:column; align-items:center; gap:5px; padding:8px; }
+.item-charges { display:flex; gap:3px; }
+.item-charges i { width:4px; height:4px; border-radius:50%; background:currentColor; }
+.quick-result { position:absolute; z-index:8; bottom:8%; left:50%; transform:translateX(-50%); display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:14px; width:max-content; max-width:90%; padding:18px; border:1px solid #ffffff26; border-radius:18px; background:#0c1729ed; }
+.quick-result strong { color:#fff; font-size:26px; }
+.pause-cover button { pointer-events:auto; }
+@media(max-width:780px) {
+ .app-shell .layout-grid { width:100%; margin:0; }
+ .floating-menu { top:12px; right:12px; }
+ .play-hud { inset:12px 12px auto; }
+ .play-meta { margin-right:58px; }
+ .quick-result .primary-button { width:auto; }
+}
+.app-shell .layout-grid { position:absolute; inset:0; height:100%; display:block; }
+.app-shell .game-column { height:100%; }

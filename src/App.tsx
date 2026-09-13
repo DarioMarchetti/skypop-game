@@ -71,6 +71,11 @@ export default function App() {
     document.addEventListener('keydown', stopPageScroll)
     return () => document.removeEventListener('keydown', stopPageScroll)
   }, [])
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuWasPaused = useRef(false)
+  const [resultOpen, setResultOpen] = useState(false)
+  const [skipResult, setSkipResult] = useState(() => { try { return localStorage.getItem('cloud-hop-skip-result') === 'true' } catch { return false } })
+  const saveSkipResult = (value: boolean) => { setSkipResult(value); try { localStorage.setItem('cloud-hop-skip-result', String(value)) } catch { /* Optional preference storage. */ } }
   const [seed, setSeed] = useState<number | null>(null)
   const [roundKey, setRoundKey] = useState(0)
   const [scene, setScene] = useState<SceneKind>('ocean')
@@ -117,6 +122,8 @@ export default function App() {
   const beginRound = useCallback(async () => {
     const requestId = ++roundRequestRef.current
     setResult(null)
+    setResultOpen(false)
+    setMenuOpen(false)
     setNewRecord(false)
     setFinishState('idle')
     setFinishError('')
@@ -168,7 +175,7 @@ export default function App() {
   }, [beginRound, loadLeaderboard])
 
   useEffect(() => {
-    if (!result || !dialogRef.current) return
+    if (!result || !resultOpen || !dialogRef.current) return
     const dialog = dialogRef.current
     const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)'))
     window.requestAnimationFrame(() => focusable()[0]?.focus())
@@ -188,7 +195,7 @@ export default function App() {
     }
     document.addEventListener('keydown', trapFocus)
     return () => document.removeEventListener('keydown', trapFocus)
-  }, [result])
+  }, [result, resultOpen, guideOpen])
 
   const onUpdate = useCallback((next: GameSnapshot) => {
     // The engine publishes the new score at jump start. Save the visual hit
@@ -213,6 +220,7 @@ export default function App() {
 
   const onGameOver = useCallback((next: GameResult) => {
     setResult(next)
+    setResultOpen(!skipResult)
     setNewRecord(next.score > best)
     setSnapshot((current) => ({ ...current, score: next.score, perfectCount: next.perfectCount, phase: 'gameover', charge: 0 }))
     setBest((currentBest) => {
@@ -220,7 +228,7 @@ export default function App() {
       try { localStorage.setItem(BEST_KEY, String(nextBest)) } catch { /* storage can be disabled */ }
       return nextBest
     })
-  }, [best])
+  }, [best, skipResult])
 
   const restart = useCallback(() => {
     setRoundKey((value) => value + 1)
@@ -277,21 +285,15 @@ export default function App() {
         </aside>
     </Guide>}
     <main className="app-shell" style={{display:guideOpen ? 'none' : undefined}}>
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="云上跳跃首页">
-          <span className="brand-mark"><span /><span /><span /></span>
-          <span><strong>云上跳跃</strong><small>CLOUD HOP</small></span>
-        </a>
-        <div className="top-actions">
-          <a className="quiet-button guide-link" href="#/guide">玩法说明</a>
-          <button className="quiet-button" type="button" onClick={() => setSound((value) => !value)} aria-pressed={sound} aria-label={sound ? '关闭节拍声' : '开启节拍声'}>
-            <Icon name={sound ? 'sound' : 'mute'} /><span className="button-label">{sound ? '节拍声' : '静音'}</span>
-          </button>
-          <button className="quiet-button" type="button" onClick={() => setPaused((value) => !value)} disabled={!isPlaying} aria-pressed={paused} aria-label={paused ? '继续游戏' : '暂停游戏'}>
-            <Icon name={paused ? 'play' : 'pause'} /><span className="button-label">{paused ? '继续' : '暂停'}</span>
-          </button>
-        </div>
-      </header>
+      <div className="floating-menu">
+        <button className="menu-toggle" aria-label="游戏菜单" aria-expanded={menuOpen} aria-controls="game-menu-panel" onClick={() => { if (!menuOpen) { menuWasPaused.current=paused; setPaused(true) } else setPaused(menuWasPaused.current); setMenuOpen(!menuOpen) }}>☰</button>
+        {menuOpen && <nav id="game-menu-panel" className="menu-panel" aria-label="游戏设置">
+          <a href="#/guide" onClick={()=>setMenuOpen(false)}>玩法与排行榜 ↗</a>
+          <button onClick={()=>setSound(value=>!value)} aria-pressed={sound}>{sound?'关闭声音':'开启声音'}</button>
+          <button onClick={()=>{setMenuOpen(false);setPaused(false)}} disabled={!isPlaying}>继续游戏</button>
+          <label><input type="checkbox" checked={skipResult} onChange={e=>saveSkipResult(e.target.checked)} />不再自动弹出成绩提交</label>
+        </nav>}
+      </div>
 
       <div className="layout-grid">
         <section className="game-column" aria-label="游戏区域">
@@ -300,11 +302,11 @@ export default function App() {
               <div className="play-score"><span>分数</span><strong className={impactPulse ? 'is-impact' : ''}>{snapshot.score.toString().padStart(2, '0')}</strong>{snapshot.combo > 1 && <b>连击 ×{snapshot.combo}</b>}</div>
               <div className="play-meta"><span style={{color:SCENES[scene].rim}}>{SCENES[scene].name}</span><span>最佳 {best}</span>{mode === 'local' && <span>本地练习</span>}</div>
             </div>
-            {!!snapshot.items?.length && <div className="play-items item-inventory" aria-label="当前道具">{snapshot.items.map(item=><span key={item.kind} style={{color:ITEM_INFO[item.kind].color}}>{ITEM_INFO[item.kind].name} · {item.remaining}跳</span>)}</div>}
+            {!!snapshot.items?.length && <div className="play-items item-inventory" aria-label="当前道具">{snapshot.items.map(item=><span key={item.kind} aria-label={`${ITEM_INFO[item.kind].name}，剩余${item.remaining}跳`} style={{color:ITEM_INFO[item.kind].color}}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">{item.kind==='compass'?<><circle cx="12" cy="12" r="9"/><path d="M12 5l4 13-4-3-4 3z"/></>:item.kind==='shell'?<><path d="M3 13a9 9 0 0118 0l-4 7H7z"/><path d="M12 19V5M12 19L6 8M12 19l6-11"/></>:<><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10"/></>}</svg><em className="item-charges" aria-hidden="true">{Array.from({length:item.remaining},(_,i)=><i key={i}/>)}</em></span>)}</div>}
             <span className="game-a11y-help" aria-live="polite">{statusText}</span>
             {mode !== 'loading' && seed !== null && <GameCanvas key={`${seed}-${roundKey}`} seed={seed} scene={scene} paused={paused} sound={sound} onUpdate={onUpdate} onGameOver={onGameOver} />}
             {mode === 'loading' && <div className="game-loading" aria-live="polite"><span className="loader" />正在连接云端…</div>}
-            {paused && isPlaying && <div className="pause-cover"><span className="pause-symbol"><Icon name="play" /></span><strong>游戏已暂停</strong><span>点击右上角继续</span></div>}
+            {paused && isPlaying && <div className="pause-cover"><span className="pause-symbol"><Icon name="play" /></span><strong>游戏已暂停</strong><button className="secondary-button" onClick={()=>{setPaused(false);setMenuOpen(false)}}>继续游戏</button></div>}
             <div className="game-a11y-help" aria-live="polite">
               {snapshot.phase === 'ready' && '按住画面或空格蓄力，松开起跳'}
               {snapshot.phase === 'charging' && '蓄力中'}
@@ -318,13 +320,16 @@ export default function App() {
 
       </div>
 
-      {result && <div className="modal-backdrop" role="presentation"><section ref={dialogRef} className="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title" tabIndex={-1}>
+      {result && !resultOpen && <div className="quick-result" role="status"><strong>{result.score} 分</strong><button className="primary-button" onClick={restart}>再来一局</button>{mode==='cloud' && finishState!=='submitted' && <button className="quiet-button" onClick={()=>setResultOpen(true)}>提交成绩</button>}</div>}
+      {result && resultOpen && <div className="modal-backdrop" role="presentation"><section ref={dialogRef} className="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title" tabIndex={-1}>
         <div className="result-glow" />
         <span className="result-kicker">{mode === 'cloud' ? '比赛结束' : '练习结束'}</span>
         <h1 id="result-title">这次跳了 {result.score} 分<span>，再试一次？</span></h1>
         <div className="result-score"><span>本局得分</span><strong>{result.score}</strong>{newRecord && <em>新纪录</em>}</div>
         <div className="result-stats"><div><strong>{result.perfectCount}</strong><span>完美落点</span></div><div><strong>{result.holds.length}</strong><span>跳跃次数</span></div><div><strong>{Math.round(result.durationMs / 1000)}s</strong><span>坚持时间</span></div></div>
         {mode === 'cloud' && session && finishState !== 'submitted' ? <form className="submit-form" onSubmit={submitScore}><label htmlFor="nickname">留下你的名字</label><div className="name-row"><input id="nickname" value={nickname} onChange={(event) => { setNickname(event.target.value); if (finishState === 'error') setFinishState('idle') }} maxLength={16} placeholder="输入昵称" autoComplete="nickname" /><button className="primary-button" type="submit" disabled={finishState === 'submitting'}>{finishState === 'submitting' ? '提交中…' : '登上榜单'} <Icon name="arrow" /></button></div>{finishState === 'error' && <p className="form-error" role="alert">{finishError}</p>}</form> : mode === 'cloud' && finishState === 'submitted' ? <p className="submitted-note" role="status">已提交到云端排行榜</p> : <p className="practice-note">这是一次本地练习，成绩已保存为本地最佳。</p>}
+        <label className="skip-result"><input type="checkbox" checked={skipResult} onChange={e=>saveSkipResult(e.target.checked)} />以后不再显示此弹窗</label>
+        <button className="text-button" disabled={finishState==='submitting'} onClick={()=>setResultOpen(false)}>跳过提交</button>
         <div className="result-actions"><button className="secondary-button" type="button" onClick={restart} disabled={finishState === 'submitting'}><Icon name="refresh" /> {finishState === 'submitting' ? '提交中…' : '再来一局'}</button></div>
       </section></div>}
     </main>

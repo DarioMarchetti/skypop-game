@@ -24,7 +24,7 @@ const configuredUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().rep
 const publishableKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "").trim();
 export const isCloudConfigured = Boolean(configuredUrl && publishableKey);
 
-const functionUrl = isCloudConfigured ? `${configuredUrl}/functions/v1/cloud-hop` : "";
+const functionUrl = isCloudConfigured ? `${configuredUrl}/functions/v1/cloud-hop-v2` : "";
 const REQUEST_TIMEOUT_MS = 8_000;
 
 function cloudUnavailable(): Error {

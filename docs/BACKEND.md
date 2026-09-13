@@ -1,10 +1,10 @@
 # 云上跳跃后端
 
-后端由一个 Supabase Edge Function `cloud-hop` 和三张带 `cloud_hop_` 前缀的表组成。浏览器只请求 Edge Function；`cloud_hop_sessions`、`cloud_hop_scores` 和 `cloud_hop_rate_limits` 都启用并强制启用 RLS，`anon` 与 `authenticated` 没有表权限。Edge Function 内部使用服务端密钥访问 Postgres，密钥不会进入前端。
+当前后端由 Supabase Edge Function `cloud-hop-v2` 和三张带 `cloud_hop_` 前缀的表组成。浏览器只请求 Edge Function；`cloud_hop_sessions`、`cloud_hop_scores` 和 `cloud_hop_rate_limits` 都启用并强制启用 RLS，`anon` 与 `authenticated` 没有表权限。Edge Function 内部使用服务端密钥访问 Postgres，密钥不会进入前端。
 
 ## 部署前配置
 
-当前工作区没有安装 Supabase CLI，也没有由本实现执行云端写入。将 [`supabase/schema.sql`](../supabase/schema.sql) 在目标项目的 SQL Editor 中执行，或复制为项目 migration 后通过 CI 应用。随后部署 [`supabase/functions/cloud-hop/index.ts`](../supabase/functions/cloud-hop/index.ts)，并确保函数旁边存在共享核心 `supabase/functions/_shared/game.ts`。
+当前项目已部署；以下步骤适用于在新 Supabase 项目中自行安装。将 [`supabase/schema.sql`](../supabase/schema.sql) 在目标项目的 SQL Editor 中执行，或复制为项目 migration 后通过 CI 应用。随后部署 [`supabase/functions/cloud-hop-v2/index.ts`](../supabase/functions/cloud-hop-v2/index.ts)，并确保函数旁边存在共享核心 `supabase/functions/_shared/game.ts`。
 
 函数需要以下 Supabase 默认环境变量：
 
@@ -22,7 +22,7 @@ Supabase 官方当前的 Edge Functions 文档说明函数使用 Deno，并建�
 
 ## 接口
 
-函数 URL 为 `POST /functions/v1/cloud-hop`，请求必须带 `apikey: VITE_SUPABASE_PUBLISHABLE_KEY`。`GET` 返回最多 20 条排行榜。
+函数 URL 为 `POST /functions/v1/cloud-hop-v2`，请求必须带 `apikey: VITE_SUPABASE_PUBLISHABLE_KEY`。`GET` 返回最多 20 条排行榜。
 
 - `POST {"action":"start"}` 返回 `{id, seed, token}`。token 只返回一次，数据库只保存 SHA-256 摘要；局有效期为 15 分钟。
 - `POST {"action":"finish","session":{"id","seed","token"},"result":{"score","perfectCount","holds","durationMs"},"nickname":"..."}`。服务端读取 seed，使用共享 `createRun`/`applyJump` 逐个复算 `holds`，忽略客户端总分，再通过锁定的数据库函数写入。
@@ -45,3 +45,6 @@ Supabase 官方当前的 Edge Functions 文档说明函数使用 Deno，并建�
 2. 合法结束局只产生一行 score；重复和并发 finish 返回相同分数。
 3. 错误 token、过期局、非法 hold、过长昵称和超限请求被拒绝。
 4. GET 排行榜按分数降序、创建时间升序返回，空表返回空数组。
+
+## v2 实际落点
+当前前端使用 cloud-hop-v2；共享核心保存 position，从真实落点计算下一跳。旧 cloud-hop 接口仍在线，代码引用 legacy-game.ts，供尚未刷新的旧客户端使用。两个版本沿用现有表与对局凭证验证，无需数据库迁移。

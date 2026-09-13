@@ -92,14 +92,6 @@ export function itemAt(seed: number, index: number): ItemKind | null {
   return buildSchedule(seed, index)[index] ?? null
 }
 
-function label(ctx: CanvasRenderingContext2D, x: number, y: number, kind: ItemKind): void {
-  ctx.font = '12px sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'top'
-  ctx.fillStyle = ITEM_INFO[kind].color
-  ctx.fillText(ITEM_INFO[kind].name, x, y + 18)
-}
-
 /** Draw a compact floating item icon. The caller's Canvas state is preserved. */
 export function drawItem(
   ctx: CanvasRenderingContext2D,
@@ -136,7 +128,6 @@ export function drawItem(
     for (const [dx, dy] of [[0, -14], [12, 0], [-12, 0]]) { ctx.beginPath(); ctx.arc(x + dx, cy + dy, 1.5, 0, Math.PI * 2); ctx.fill() }
   }
   ctx.shadowBlur = 0
-  label(ctx, x, cy + 10, kind)
   ctx.restore()
 }
 

@@ -1,4 +1,4 @@
-import { applyJump, createRun, JUMP_DURATION_MS, MAX_HOLD_MS } from "../_shared/legacy-game.ts";
+import { applyJump, createRun, JUMP_DURATION_MS, MAX_HOLD_MS } from "../_shared/game.ts";
 
 type StartResponse = { id: string; seed: number; token: string };
 type FinishBody = {

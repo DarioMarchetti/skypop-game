@@ -64,4 +64,22 @@ test('does not mutate the input state or platform array', () => {
     const before = JSON.stringify(run);
     applyJump(run, MAX_HOLD_MS);
     assert.equal(JSON.stringify(run), before);
-  });
+});
+
+test('keeps an off-center landing and starts the next jump there', () => {
+    const run = createRun(314);
+    const first = run.platforms[0];
+    const target = run.platforms[1];
+    const centerDistance = Math.hypot(target.x - first.x, target.z - first.z);
+    const offsetHold = Math.round((centerDistance + target.radius * 0.5 - 30) / 0.24);
+    const landed = applyJump(run, offsetHold);
+    assert.equal(landed.landed, true);
+    assert.notDeepEqual(landed.state.position, { x: target.x, z: target.z });
+    assert.deepEqual(landed.state.position, { x: landed.state.position.x, z: landed.state.position.z });
+
+    const nextTarget = landed.state.platforms[2];
+    const from = landed.state.position;
+    const nextDistance = Math.hypot(nextTarget.x - from.x, nextTarget.z - from.z);
+    const next = applyJump(landed.state, (nextDistance - 30) / 0.24);
+    assert.equal(next.landed, true);
+});

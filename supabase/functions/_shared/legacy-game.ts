@@ -20,8 +20,6 @@ export type RunState = {
   combo: number;
   perfectCount: number;
   over: boolean;
-  /** The player's actual world position, which may be offset from a platform center. */
-  position: { x: number; z: number };
 };
 
 export const MAX_HOLD_MS = 1200;
@@ -107,7 +105,6 @@ export const createRun = (seed: number): RunState => {
     combo: 0,
     perfectCount: 0,
     over: false,
-    position: { x: 0, z: 0 },
   };
 };
 
@@ -142,25 +139,14 @@ export const applyJump = (
     };
   }
 
-  // The jump starts at the player's actual landing position. Its direction
-  // points toward the next platform center, so short/long releases land at a
-  // real point along that vector rather than snapping to the center.
-  const fromPosition = state.position ?? { x: current.x, z: current.z };
-  const deltaX = target.x - fromPosition.x;
-  const deltaZ = target.z - fromPosition.z;
-  const targetDistance = Math.hypot(deltaX, deltaZ);
-  const ratio = targetDistance > 0 ? distance / targetDistance : 0;
-  const landingPosition = {
-    x: fromPosition.x + deltaX * ratio,
-    z: fromPosition.z + deltaZ * ratio,
-  };
+  const targetDistance = distanceBetween(current, target);
   const error = Math.abs(distance - targetDistance);
   const landed = error <= target.radius;
   const perfect = landed && error <= target.radius * 0.22;
 
   if (!landed) {
     return {
-      state: { ...state, platforms: state.platforms.slice(), over: true, position: landingPosition },
+      state: { ...state, platforms: state.platforms.slice(), over: true },
       landed: false,
       perfect: false,
       distance,
@@ -180,7 +166,6 @@ export const applyJump = (
       combo,
       perfectCount: state.perfectCount + (perfect ? 1 : 0),
       over: target.index >= MAX_JUMPS,
-      position: landingPosition,
     },
     landed: true,
     perfect,

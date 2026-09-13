@@ -6,7 +6,7 @@ import { createRun, applyJump, JUMP_DURATION_MS } from '../supabase/functions/_s
 const base = process.env.VITE_SUPABASE_URL!;
 const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
 assert(base && key, 'Supabase public configuration required');
-const endpoint = `${base}/functions/v1/cloud-hop`;
+const endpoint = `${base}/functions/v1/cloud-hop-v2`;
 async function request(body?: unknown) {
   const r = await fetch(endpoint, {method: body ? 'POST' : 'GET', headers: {apikey:key, 'content-type':'application/json'}, body: body ? JSON.stringify(body) : undefined, signal:AbortSignal.timeout(20000)});
   return {status:r.status, body:await r.json()};
@@ -17,11 +17,14 @@ const session = started.body;
 console.log('Created test session:', session.id);
 const run = createRun(session.seed);
 const target = run.platforms[1];
-const hold = Math.round((Math.hypot(target.x,target.z)-30)/0.24);
-const jumped = applyJump(run,hold); assert(jumped.perfect);
-const holds = [hold,0];
-const expected = applyJump(jumped.state,0).state; assert(expected.over);
-const durationMs = hold + 2*JUMP_DURATION_MS;
+const hold = Math.round((Math.hypot(target.x,target.z)+target.radius*0.6-30)/0.24);
+const jumped = applyJump(run,hold); assert(jumped.landed && !jumped.perfect);
+const target2 = jumped.state.platforms[2];
+const hold2 = Math.round((Math.hypot(target2.x-jumped.state.position.x,target2.z-jumped.state.position.z)-30)/0.24);
+const second = applyJump(jumped.state,hold2); assert(second.perfect);
+const holds = [hold,hold2,0];
+const expected = applyJump(second.state,0).state; assert(expected.over);
+const durationMs = hold + hold2 + 3*JUMP_DURATION_MS;
 const body = {action:'finish',session,result:{holds,durationMs,score:999999,perfectCount:9999},nickname:'验收测试'};
 await new Promise(resolve=>setTimeout(resolve,durationMs+100));
 const badToken = await request({...body,session:{...session,token:'x'.repeat(43)}}); assert.equal(badToken.status,400);

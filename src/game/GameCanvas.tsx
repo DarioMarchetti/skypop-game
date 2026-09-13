@@ -284,14 +284,17 @@ export function GameCanvas({ seed, scene = 'ocean', paused, sound, onUpdate, onG
     if (phaseRef.current !== 'charging') return;
     const hold = Math.round(clamp(releasedAt - chargeStartRef.current, 0, MAX_HOLD_MS));
     const run = runRef.current;
-    const from = run.platforms[run.index] ?? run.platforms[0];
+    const platform = run.platforms[run.index] ?? run.platforms[0];
+    const from = { ...platform, ...(run.position ?? { x: platform.x, z: platform.z }) };
     const result = applyJump(run, hold);
     runRef.current = result.state;
     holdsRef.current.push(hold);
     if (runStartedRef.current === null) runStartedRef.current = chargeStartRef.current;
     jumpRef.current = {
       from,
-      target: result.target,
+      // Keep the target platform metadata (radius/index) while animating to
+      // the actual point reached by this release.
+      target: { ...result.target, ...result.state.position },
       distance: result.distance,
       landed: result.landed,
       perfect: result.perfect,
@@ -419,8 +422,9 @@ export function GameCanvas({ seed, scene = 'ocean', paused, sound, onUpdate, onG
       const gameTimestamp = isPaused ? (pausedAtRef.current ?? timestamp) : timestamp;
       const deltaSeconds = lastFrameRef.current > 0 ? (timestamp - lastFrameRef.current) / 1000 : 0;
       if (!isPaused) stepFx(fxRef.current, deltaSeconds, reducedMotionRef.current);
-      let actor = run.platforms[run.index] ?? run.platforms[0];
-      let actorHeight = 16;
+      const currentPlatform = run.platforms[run.index] ?? run.platforms[0];
+      let actor = currentPlatform ? { ...currentPlatform, ...(run.position ?? { x: currentPlatform.x, z: currentPlatform.z }) } : currentPlatform;
+      let actorHeight = 18;
       let progress = 0;
       let fallAge = -1;
       if (phaseRef.current === 'jumping' && jump) {
@@ -457,8 +461,6 @@ export function GameCanvas({ seed, scene = 'ocean', paused, sound, onUpdate, onG
             const pickup = itemAt(seed, jump.target.index);
             if (pickup) {
               itemsRef.current[pickup] = ITEM_INFO[pickup].duration;
-              fxRef.current.texts.push({age:0,life:1.1,x:jump.target.x,z:jump.target.z,label:ITEM_INFO[pickup].name,combo:0,perfect:false});
-              fxRef.current.texts = fxRef.current.texts.slice(-5);
             }
             spawnLandingFx(fxRef.current, jump.target.x, jump.target.z, jump.perfect, run.combo, reducedMotionRef.current);
           }
@@ -552,7 +554,7 @@ export function GameCanvas({ seed, scene = 'ocean', paused, sound, onUpdate, onG
       const actorArc = phaseRef.current === 'jumping' ? 4 * progress * (1 - progress) : 0;
       const actorJitter = actorCharge > 0 && !reducedMotionRef.current ? Math.sin(timestamp * 0.14) * actorCharge * 2.5 : 0;
       if (phaseRef.current === 'charging') {
-        const current = run.platforms[run.index], target = run.platforms[run.index + 1];
+        const current = actor, target = run.platforms[run.index + 1];
         if (target) {
           const distance = jumpDistance(actorCharge * MAX_HOLD_MS);
           const span = Math.hypot(target.x-current.x, target.z-current.z);
@@ -563,8 +565,7 @@ export function GameCanvas({ seed, scene = 'ocean', paused, sound, onUpdate, onG
             context.strokeStyle = close ? '#fff17a' : '#a6ffff';
             context.lineWidth = 2; context.shadowColor = context.strokeStyle; context.shadowBlur = 12;
             context.beginPath(); context.ellipse(point.x,point.y,11,5,0,0,Math.PI*2); context.stroke();
-            context.fillStyle = context.strokeStyle; context.font='12px system-ui'; context.textAlign='center';
-            context.fillText('预计落点',point.x,point.y-14); context.restore();
+            context.restore();
           }
           if (itemsRef.current.shell > 0 && close) {
             const point = project(actor.x,actor.z,cameraX,cameraZ,cssWidth,cssHeight);
