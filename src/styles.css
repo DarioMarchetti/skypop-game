@@ -779,3 +779,15 @@ button:focus-visible, input:focus-visible, a:focus-visible {
  .leaderboard-panel { margin:30px auto; padding:18px; }
  .guide-content { margin-top:26px; }
 }
+
+/* The game route always fits the viewport; the guide keeps normal scrolling. */
+.app-shell { height:100dvh; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+.app-shell .topbar { flex:0 0 68px; }
+.app-shell .layout-grid { flex:1; min-height:0; margin:16px auto; display:flex; }
+.app-shell .game-column { width:100%; min-height:0; }
+.app-shell .game-frame { height:100%; min-height:0; max-height:none; }
+@media(max-width:780px) {
+ .app-shell .topbar { flex-basis:62px; }
+ .app-shell .layout-grid { margin:8px auto; }
+ .top-actions .guide-link { white-space:nowrap; }
+}

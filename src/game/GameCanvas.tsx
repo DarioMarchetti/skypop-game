@@ -339,8 +339,9 @@ export function GameCanvas({ seed, scene = 'ocean', paused, sound, onUpdate, onG
   }, [resetCharge]);
 
   const onKeyDown = useCallback((event: ReactKeyboardEvent<HTMLCanvasElement>): void => {
-    if (event.code !== 'Space' || event.repeat || keyChargingRef.current || activePointerRef.current !== null) return;
+    if (event.code !== 'Space') return;
     event.preventDefault();
+    if (event.repeat || keyChargingRef.current || activePointerRef.current !== null) return;
     beginCharge(now());
     if (phaseRef.current === 'charging') keyChargingRef.current = true;
   }, [beginCharge]);

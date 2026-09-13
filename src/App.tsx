@@ -61,6 +61,16 @@ export default function App() {
     window.addEventListener('hashchange', navigate)
     return () => window.removeEventListener('hashchange', navigate)
   }, [])
+  useEffect(() => {
+    const stopPageScroll = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' || window.location.hash === '#/guide') return
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, button, a, [contenteditable="true"]')) return
+      event.preventDefault()
+    }
+    document.addEventListener('keydown', stopPageScroll)
+    return () => document.removeEventListener('keydown', stopPageScroll)
+  }, [])
   const [seed, setSeed] = useState<number | null>(null)
   const [roundKey, setRoundKey] = useState(0)
   const [scene, setScene] = useState<SceneKind>('ocean')
@@ -257,7 +267,15 @@ export default function App() {
 
   return (
     <>
-    {guideOpen && <Guide />}
+    {guideOpen && <Guide>
+        <aside className="leaderboard-panel" aria-labelledby="leaderboard-title">
+          <div className="panel-heading"><div><span className="eyebrow">TOP 20</span><h2 id="leaderboard-title">云端排行榜</h2></div><Icon name="arrow" /></div>
+          <div className="leaderboard-body">
+            {leaders.length > 0 ? <ol className="leader-list">{leaders.map((entry, index) => <li key={entry.id} className={index < 3 ? 'podium' : ''}><span className="rank">{String(index + 1).padStart(2, '0')}</span><span className="leader-name">{entry.nickname}</span><span className="leader-score">{entry.score}</span><time>{formatRankDate(entry.created_at)}</time></li>)}</ol> : <div className="leader-empty"><span className="empty-cloud">☁</span><strong>{leaderboardState === 'loading' ? '排行榜加载中' : leaderboardState === 'error' ? '暂时无法连接' : '还没有人登榜'}</strong><p>{leaderboardMessage}</p>{leaderboardState === 'error' && <button type="button" className="text-button" onClick={() => void loadLeaderboard()}><Icon name="refresh" />重新加载</button>}</div>}
+          </div>
+
+        </aside>
+    </Guide>}
     <main className="app-shell" style={{display:guideOpen ? 'none' : undefined}}>
       <header className="topbar">
         <a className="brand" href="/" aria-label="云上跳跃首页">
@@ -297,13 +315,7 @@ export default function App() {
 
         </section>
 
-        <aside className="leaderboard-panel" aria-labelledby="leaderboard-title">
-          <div className="panel-heading"><div><span className="eyebrow">TOP 20</span><h2 id="leaderboard-title">云端排行榜</h2></div><Icon name="arrow" /></div>
-          <div className="leaderboard-body">
-            {leaders.length > 0 ? <ol className="leader-list">{leaders.map((entry, index) => <li key={entry.id} className={index < 3 ? 'podium' : ''}><span className="rank">{String(index + 1).padStart(2, '0')}</span><span className="leader-name">{entry.nickname}</span><span className="leader-score">{entry.score}</span><time>{formatRankDate(entry.created_at)}</time></li>)}</ol> : <div className="leader-empty"><span className="empty-cloud">☁</span><strong>{leaderboardState === 'loading' ? '排行榜加载中' : leaderboardState === 'error' ? '暂时无法连接' : '还没有人登榜'}</strong><p>{leaderboardMessage}</p>{leaderboardState === 'error' && <button type="button" className="text-button" onClick={() => void loadLeaderboard()}><Icon name="refresh" />重新加载</button>}</div>}
-          </div>
 
-        </aside>
       </div>
 
       {result && <div className="modal-backdrop" role="presentation"><section ref={dialogRef} className="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title" tabIndex={-1}>
